@@ -17,9 +17,13 @@ export default function Weather() {
   const [forecast, setForecast] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [favourites, setFavourites] = useState(
+    () => JSON.parse(localStorage.getItem("favourites")) || []
+  );
 
-  const fetchWeatherData = async () => {
-    if (!city) return;
+  const fetchWeatherData = async (selectedCity) => {
+    const cityName = selectedCity || city;
+    if (!cityName) return;
     setLoading(true);
     setError("");
     try {
@@ -27,18 +31,20 @@ export default function Weather() {
      const apiKey = import.meta.env.VITE_OPEN_WEATHER_API_KEY;
 
       const currentWeatherResponse = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`
+        `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${apiKey}&units=metric`
       );
       setWeather(currentWeatherResponse.data);
       console.log(currentWeatherResponse);
 
       const forecastResponse = await axios.get(
-        `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`
+        `https://api.openweathermap.org/data/2.5/forecast?q=${cityName}&appid=${apiKey}&units=metric`
       );
       setForecast(
         forecastResponse.data.list.filter((_, index) => index % 8 === 0)
       );
         console.log(forecastResponse);
+
+      setCity(cityName);
     } catch (err) {
       setError("Failed to fetch weather data. Please try again.");
     } finally {
@@ -46,8 +52,16 @@ export default function Weather() {
     }
   };
 
+  const addFavourite = () => {
+    if (city && !favourites.includes(city)) {
+      const updatedFavourites = [...favourites, city];
+      setFavourites(updatedFavourites);
+      localStorage.setItem("favourites", JSON.stringify(updatedFavourites));
+    }
+  }
+
   useEffect(() => {
-    fetchWeatherData();
+    if (city) fetchWeatherData(city);
   }, []); // Fetch default data on load if needed
 
   return (
@@ -60,8 +74,23 @@ export default function Weather() {
           value={city}
           onChange={(e) => setCity(e.target.value)}
         />{" "}
-        <button onClick={fetchWeatherData}>Search</button>
+        <button onClick={() => fetchWeatherData(city)}>Search</button>
+        <button onClick={addFavourite}>Add to Favourites</button>
       </div>
+      {favourites.length > 0 && (
+        <div>
+          <h2>Favourites</h2>
+          <ul>
+            {favourites.map((favCity, i) => (
+              <li key={i}>
+                <button onClick={() => fetchWeatherData(favCity)}>
+                  {favCity}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
       {weather && (
